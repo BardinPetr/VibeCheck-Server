@@ -1,6 +1,11 @@
-import { DB, FB } from '../lib/firebase.js';
+import C from 'chalk';
+import { DB, FB } from '../src/lib/firebase.js';
+
+// export const clearDB = () => deleteCollection('data', 100);
 
 export const migrateUsers = async () => {
+  console.log(C`{blue Started migrating users}`);
+
   const batchSize = 500;
 
   let old = await DB.collection('users').limit(batchSize).get();
@@ -25,6 +30,8 @@ export const migrateUsers = async () => {
 
     await batch.commit();
   }
+
+  console.log(C`{green Finished migrating users}`);
 };
 
 const SPBDistricts = [
@@ -33,6 +40,7 @@ const SPBDistricts = [
   'Адмиралтейский район',
 ];
 export const migrateCities = async () => {
+  console.log(C`{blue Started migrating cities}`);
   const batch = DB.batch();
 
   (await DB.collection('districts').get()).forEach((i) => {
@@ -48,18 +56,22 @@ export const migrateCities = async () => {
     );
   });
 
-  await batch.commit();
-
   (await DB.collection('cities').get()).forEach(async (i) => {
     if (['Санкт-Петербург', 'Москва'].includes(i.id)) {
-      await DB.collection(`/data/work/cities`).doc(i.id).set({
+      batch.set(DB.collection(`/data/work/cities`).doc(i.id), {
         coordinates: i.data().location,
       });
     }
   });
+
+  await batch.commit();
+
+  console.log(C`{green Finished migrating cities}`);
 };
 
 export const migrateVibes = async () => {
+  console.log(C`{blue Started migrating vibes}`);
+
   const batch = DB.batch();
 
   const baseColl = DB.collection('/data/work/cities');
@@ -74,34 +86,55 @@ export const migrateVibes = async () => {
   });
 
   await batch.commit();
+
+  console.log(C`{green Finished migrating vibes}`);
+};
+
+export const migrateRPlaces = async () => {
+  console.log(C`{blue Started migrating recommended places}`);
+
+  const run = (await DB.collection('/data/work/cities').get()).docs.map(
+    async (city) => {
+      const recommended = (
+        await DB.collection('places')
+          .where('recommended', '==', true)
+          .where(
+            'district',
+            'in',
+            (await city.ref.collection('districts').get()).docs.map((i) => i.id)
+          )
+          .get()
+      ).docs.map((i) => i.id);
+      await city.ref.set({
+        recommended_places: recommended,
+      });
+    }
+  );
+
+  await Promise.all(run);
+
+  console.log(C`{green Finished migrating recommended places}`);
 };
 
 export const migratePlaces = async () => {
-  (await DB.collection('/data/work/cities').get()).forEach(async (city) => {
-    const recommended = (
-      await DB.collection('places')
-        .where('recommended', '==', true)
-        .where(
-          'district',
-          'in',
-          (await city.ref.collection('districts').get()).docs.map((i) => i.id)
-        )
-        .get()
-    ).docs.map((i) => i.id);
-    console.log(recommended);
-    city.ref.update({
-      recommended_places: FB.firestore.FieldValue.arrayUnion(...recommended),
-    });
+  console.log(C`{blue Started migrating places}`);
+
+  const batch = DB.batch();
+
+  (await DB.collection('places').get()).docs.map((i) => {
+    const data = i.data();
   });
 
-  // const batch = DB.batch();
+  await batch.commit();
 
-  // await batch.commit();
+  console.log(C`{green Finished migrating places}`);
 };
 
 (async () => {
+  // await clearDB();
   await migrateUsers();
   await migrateCities();
   await migrateVibes();
-  await migratePlaces();
+  await migrateRPlaces();
+  // await migratePlaces();
 })();
