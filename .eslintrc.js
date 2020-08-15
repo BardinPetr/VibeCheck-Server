@@ -14,5 +14,6 @@ module.exports = {
     'no-await-in-loop': 'off',
     'import/extensions': 'off',
     'no-console': 'off',
+    'import/prefer-default-export': 'off',
   },
 };

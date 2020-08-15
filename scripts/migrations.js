@@ -1,5 +1,5 @@
 import C from 'chalk';
-import { DB, FB } from '../src/lib/firebase.js';
+import { DB } from '../src/lib/firebase.js';
 
 // export const clearDB = () => deleteCollection('data', 100);
 
@@ -116,13 +116,27 @@ export const migrateRPlaces = async () => {
   console.log(C`{green Finished migrating recommended places}`);
 };
 
-export const migratePlaces = async () => {
+export const migratePlacesToPending = async () => {
   console.log(C`{blue Started migrating places}`);
 
   const batch = DB.batch();
 
   (await DB.collection('places').get()).docs.map((i) => {
     const data = i.data();
+    const res = {
+      coordinates: data.location,
+      address: '',
+      name: data.name,
+      description: data.description,
+      telephone: '',
+      websiteUrl: '',
+      images: [],
+      district: data.district,
+      minPrice: data.minPrice,
+      maxPrice: data.maxPrice,
+      goals: data.goals,
+      moods: data.moods,
+    };
   });
 
   await batch.commit();
@@ -132,9 +146,9 @@ export const migratePlaces = async () => {
 
 (async () => {
   // await clearDB();
-  await migrateUsers();
-  await migrateCities();
-  await migrateVibes();
-  await migrateRPlaces();
-  // await migratePlaces();
+  // await migrateUsers();
+  // await migrateCities();
+  // await migrateVibes();
+  // await migrateRPlaces();
+  // await migratePlacesToPending();
 })();
