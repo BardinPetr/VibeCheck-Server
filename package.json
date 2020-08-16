@@ -16,6 +16,8 @@
     "firebase-admin": "^9.0.0",
     "jimp": "^0.16.0",
     "node-geocoder": "^3.27.0",
+    "object-scan": "^13.1.2",
+    "set-value": "^3.0.2",
     "tmp": "^0.2.1",
     "uuid": "^8.3.0"
   },

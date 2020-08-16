@@ -8,7 +8,7 @@ import { saveImage } from '../src/processing/image.js';
 
 // export const clearDB = () => deleteCollection('data', 100);
 
-export const migrateUsers = async () => {
+const migrateUsers = async () => {
   console.log(C`{blue Started migrating users}`);
 
   const batchSize = 500;
@@ -44,7 +44,7 @@ const SPBDistricts = [
   'Петроградский район',
   'Адмиралтейский район',
 ];
-export const migrateCities = async () => {
+const migrateCities = async () => {
   console.log(C`{blue Started migrating cities}`);
   const batch = DB.batch();
 
@@ -74,7 +74,7 @@ export const migrateCities = async () => {
   console.log(C`{green Finished migrating cities}`);
 };
 
-export const migrateVibes = async () => {
+const migrateVibes = async () => {
   console.log(C`{blue Started migrating vibes}`);
 
   const batch = DB.batch();
@@ -95,7 +95,7 @@ export const migrateVibes = async () => {
   console.log(C`{green Finished migrating vibes}`);
 };
 
-export const migrateMoods = async () => {
+const migrateMoods = async () => {
   console.log(C`{blue Started migrating moods and goals}`);
 
   await Promise.all(
@@ -133,7 +133,7 @@ export const migrateMoods = async () => {
   console.log(C`{green Finished migrating vibes}`);
 };
 
-export const migrateRPlaces = async () => {
+const migrateRPlaces = async () => {
   console.log(C`{blue Started migrating recommended places}`);
 
   const run = (await DB.collection('/data/work/cities').get()).docs.map(
@@ -159,7 +159,7 @@ export const migrateRPlaces = async () => {
   console.log(C`{green Finished migrating recommended places}`);
 };
 
-export const migratePlaces = async () => {
+const migratePlaces = async () => {
   console.log(C`{blue Started migrating places}`);
 
   const batch = DB.batch();
@@ -197,7 +197,7 @@ export const migratePlaces = async () => {
   console.log(C`{green Finished migrating places}`);
 };
 
-(async () => {
+export const doMigrations = async () => {
   // await clearDB();
 
   await migrateUsers();
@@ -206,4 +206,11 @@ export const migratePlaces = async () => {
   await migrateRPlaces();
   await migratePlaces();
   await migrateMoods();
+};
+
+(async () => {
+  // await doMigrations();
+
+  const a = await DB.collection('/data/work/cities').doc('Москва').get();
+  console.log(a.data());
 })();
