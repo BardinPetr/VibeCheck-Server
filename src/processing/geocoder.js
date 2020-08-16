@@ -1,6 +1,8 @@
 import Geocoder from 'node-geocoder';
 import dotenv from 'dotenv';
 
+import { FB } from '../lib/firebase.js';
+
 dotenv.config();
 
 const geocoder = Geocoder({
@@ -12,8 +14,8 @@ const geocoder = Geocoder({
 export const reverseGeocode = async (data) => {
   const res = (
     await geocoder.reverse({
-      lat: data.oa,
-      lon: data.ha,
+      lat: data.latitude,
+      lon: data.longitude,
     })
   )[0];
   return {
@@ -30,5 +32,8 @@ export const geocode = async (data) => {
       address: data,
     })
   )[0];
-  return { oa: res.latitude, ha: res.longitude };
+  return new FB.firestore.GeoPoint(res.latitude, res.longitude);
 };
+
+export const fixDistrictNaming = (data) =>
+  data.toUpperCase().replace('РАЙОН', '').trim();

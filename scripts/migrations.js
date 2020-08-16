@@ -1,5 +1,10 @@
 import C from 'chalk';
 import { DB } from '../src/lib/firebase.js';
+import {
+  reverseGeocode,
+  fixDistrictNaming,
+} from '../src/processing/geocoder.js';
+import { saveImage } from '../src/processing/image.js';
 
 // export const clearDB = () => deleteCollection('data', 100);
 
@@ -49,7 +54,7 @@ export const migrateCities = async () => {
         `/data/work/cities/${
           SPBDistricts.includes(i.id) ? 'Санкт-Петербург' : 'Москва'
         }/districts`
-      ).doc(i.id),
+      ).doc(fixDistrictNaming(i.id)),
       {
         coordinates: i.data().location,
       }
@@ -90,6 +95,44 @@ export const migrateVibes = async () => {
   console.log(C`{green Finished migrating vibes}`);
 };
 
+export const migrateMoods = async () => {
+  console.log(C`{blue Started migrating moods and goals}`);
+
+  await Promise.all(
+    (await DB.collection('/data/work/cities').get()).docs.map(async (c) => {
+      const res = (
+        await c.ref
+          .collection('places')
+          .where(
+            'district',
+            'in',
+            (await c.ref.collection('districts').get()).docs.map((i) => i.id)
+          )
+          .get()
+      ).docs.reduce(
+        (acc, i) => ({
+          moods: acc.moods.concat(i.data().moods),
+          goals: acc.goals.concat(i.data().goals),
+          tags: acc.tags,
+        }),
+        {
+          moods: [],
+          goals: [],
+          tags: [],
+        }
+      );
+
+      await c.ref.update({
+        moods: [...new Set(res.moods)],
+        goals: [...new Set(res.goals)],
+        tags: [...new Set(res.tags)],
+      });
+    })
+  );
+
+  console.log(C`{green Finished migrating vibes}`);
+};
+
 export const migrateRPlaces = async () => {
   console.log(C`{blue Started migrating recommended places}`);
 
@@ -105,7 +148,7 @@ export const migrateRPlaces = async () => {
           )
           .get()
       ).docs.map((i) => i.id);
-      await city.ref.set({
+      await city.ref.update({
         recommended_places: recommended,
       });
     }
@@ -116,28 +159,38 @@ export const migrateRPlaces = async () => {
   console.log(C`{green Finished migrating recommended places}`);
 };
 
-export const migratePlacesToPending = async () => {
+export const migratePlaces = async () => {
   console.log(C`{blue Started migrating places}`);
 
   const batch = DB.batch();
 
-  (await DB.collection('places').get()).docs.map((i) => {
+  const baseColl = DB.collection('/data/work/cities');
+  const places = await DB.collection('places').get();
+
+  const tasks = places.docs.map(async (i) => {
     const data = i.data();
+    const geo = await reverseGeocode(data.location);
     const res = {
       coordinates: data.location,
-      address: '',
+      address: geo.address,
       name: data.name,
       description: data.description,
       telephone: '',
       websiteUrl: '',
-      images: [],
-      district: data.district,
+      images: [await saveImage(data.imageUrl)],
+      district: fixDistrictNaming(data.district),
       minPrice: data.minPrice,
       maxPrice: data.maxPrice,
       goals: data.goals,
       moods: data.moods,
     };
+    const doc = baseColl
+      .doc(SPBDistricts.includes(data.district) ? 'Санкт-Петербург' : 'Москва')
+      .collection('places');
+    batch.set(doc.doc(i.id), res);
   });
+
+  await Promise.allSettled(tasks);
 
   await batch.commit();
 
@@ -146,9 +199,11 @@ export const migratePlacesToPending = async () => {
 
 (async () => {
   // await clearDB();
-  // await migrateUsers();
-  // await migrateCities();
-  // await migrateVibes();
-  // await migrateRPlaces();
-  // await migratePlacesToPending();
+
+  await migrateUsers();
+  await migrateCities();
+  await migrateVibes();
+  await migrateRPlaces();
+  await migratePlaces();
+  await migrateMoods();
 })();

@@ -21,7 +21,8 @@ export const downloadImage = (url) => {
   });
 };
 
-export const saveImage = async (url, size) => {
+export const saveImage = async (baseUrl, size) => {
+  const url = encodeURI(baseUrl);
   const file = await downloadImage(url);
 
   const image = await jimp.read(file);
